@@ -93,7 +93,7 @@ export async function deleteProduct(req, res){
     }
     try{
         await Product.deleteOne({
-            productId: req.param.productId//req eke parameter vl productId vidiht apu eka
+            productId: req.params.productId//req eke parameter vl productId vidiht apu eka
         })
         res.json({
             message :  "product deleted successfully"
@@ -117,7 +117,8 @@ export async function updateProduct(req, res){
     }
     try{
         await Product.updateOne({
-            productId: req.param.productId
+            productId: req.params.productId
+            
 
         },{
             name : req.body.name,
@@ -143,7 +144,7 @@ export async function updateProduct(req, res){
 export async function getProductById(req, res) {
     try{
        const product = await Product.findOne({// e id eken product eka tiyed blnv
-        productId: req.param.productId
+        productId: req.params.productId
        }) 
        if(product==null){
         res.status(400).json({//ntnm null kiyala yvnv

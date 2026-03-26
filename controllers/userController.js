@@ -33,7 +33,7 @@ export async function createUser(req , res){
 export async function loginUser(req,res){
 //email,password user hoyagann oni
    try{
-    const passwordHash = bcrypt.hashSync(req.body.password, 10)//10 kiyanne hash vena time gana(10 times hash venva)
+    //const passwordHash = bcrypt.hashSync(req.body.password, 10)//10 kiyanne hash vena time gana(10 times hash venva)
     // console.log(passwordHash)//hash una password eka pennanna
 
     const user = await User.findOne({
@@ -68,9 +68,9 @@ export async function loginUser(req,res){
             token:token
            })//log visthara encrypt vela hash ekak vge pennanv
 
-            res.json({
+           /* res.json({
                 message : "login successfull"
-            })
+            })*/
         }else{
             res.status(401).json({
                 message:"invalid password"

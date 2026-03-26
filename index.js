@@ -1,6 +1,6 @@
 import express from "express"
 import mongoose from "mongoose";
-//import Student from "../models/student.js";
+
 
 import userRouter from "./routers/userRouter.js"
 

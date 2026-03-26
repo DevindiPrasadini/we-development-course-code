@@ -24,6 +24,6 @@ export default function authenticateUser(req, res, next){
         }else{
             next()
         }
-        next()//dn req ek print vela igava kenata yavanava
+        //next()//dn req ek print vela igava kenata yavanava
     }
 
