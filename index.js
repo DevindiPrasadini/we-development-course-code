@@ -1,7 +1,7 @@
 import express from "express"
 import mongoose from "mongoose";
 //import Student from "../models/student.js";
-import studentRouter from "./routers/studentRouter.js";
+
 import userRouter from "./routers/userRouter.js"
 
 import authenticateUser from "./middlewares/authentication.js";
@@ -25,7 +25,7 @@ app.use(express.json())//req ek allagen clean krl yavanav
 
 app.use(authenticateUser)
 
-app.use("/students",studentRouter)
+
 app.use("/users",userRouter);
 app.use("/products",productRouter)
 
