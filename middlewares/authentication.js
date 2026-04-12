@@ -1,4 +1,6 @@
 import jwt from "jsonwebtoken"
+import dotenv from "dotenv"
+dotenv.config()
 
 export default function authenticateUser(req, res, next){
     
@@ -9,7 +11,7 @@ export default function authenticateUser(req, res, next){
               const token = header.replace("Bearer ","")//token eke issr bearer space ekak ekk print venv ek ain krgnn
              // console.log(token)
     
-              jwt.verify(token, "webdevelopment2005",(error, decoded)=>{
+              jwt.verify(token,JWT_SECRET ,(error, decoded)=>{
                 //console.log(decoded)//decoded kiyala enne iser ge details tika kamathi namak dagnn pluvn
                 if(error){// if token in incorrect
                     res.json({

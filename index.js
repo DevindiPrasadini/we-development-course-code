@@ -7,11 +7,16 @@ import userRouter from "./routers/userRouter.js"
 import authenticateUser from "./middlewares/authentication.js";
 import productRouter from "./routers/productRouter.js";
 
+import cors from "cors";
+import dotenv from "dotenv"
+
+dotenv.config()
+
 
 const app= express();
 
 
-const mongodbURI = "mongodb+srv://admin:12345@cluster0.7n1tufq.mongodb.net/first?appName=Cluster0"
+const mongodbURI = process.env.MONGO_URI
 
  
 
@@ -20,14 +25,14 @@ mongoose.connect(mongodbURI).then(
         console.log("connected to mongodb");
     }
 )
-
+app.use(cors());
 app.use(express.json())//req ek allagen clean krl yavanav
 
 app.use(authenticateUser)
 
 
-app.use("/users",userRouter);
-app.use("/products",productRouter)
+app.use("/api/users",userRouter);
+app.use("/api/products",productRouter)
 
 
 

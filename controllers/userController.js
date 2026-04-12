@@ -1,13 +1,15 @@
 import User from "../models/user.js";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
+import dotenv from "dotenv"
+dotenv.config()
 
 
 export async function createUser(req , res){  
 
     try{
 
-        
+         const passwordHash = bcrypt.hashSync(req.body.password, 10)
 
         const newUser = new User({
             email : req.body.email,
@@ -61,11 +63,12 @@ export async function loginUser(req,res){
                     image:user.image
             } //ita passe detaiols encryption krnv
 
-            const token = jwt.sign(payload, "webdevelopment2005",{
+            const token = jwt.sign(payload, JWT_SECRET,{
                 expiresIn : "48h"//48h vlin token password invalid venv
             })
            res.json({
-            token:token
+            token:token,
+            isAdmin: user.isAdmin
            })//log visthara encrypt vela hash ekak vge pennanv
 
            /* res.json({
