@@ -11,7 +11,7 @@ export default function authenticateUser(req, res, next){
               const token = header.replace("Bearer ","")//token eke issr bearer space ekak ekk print venv ek ain krgnn
              // console.log(token)
     
-              jwt.verify(token,JWT_SECRET ,(error, decoded)=>{
+              jwt.verify(token,process.env.JWT_SECRET ,(error, decoded)=>{
                 //console.log(decoded)//decoded kiyala enne iser ge details tika kamathi namak dagnn pluvn
                 if(error){// if token in incorrect
                     res.json({

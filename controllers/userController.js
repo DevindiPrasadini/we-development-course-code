@@ -63,7 +63,7 @@ export async function loginUser(req,res){
                     image:user.image
             } //ita passe detaiols encryption krnv
 
-            const token = jwt.sign(payload, JWT_SECRET,{
+            const token = jwt.sign(payload,process.env.JWT_SECRET,{
                 expiresIn : "48h"//48h vlin token password invalid venv
             })
            res.json({

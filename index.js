@@ -10,10 +10,11 @@ import productRouter from "./routers/productRouter.js";
 import cors from "cors";
 import dotenv from "dotenv"
 
-dotenv.config()
+dotenv.config()//env file eke deval load krnv
 
 
 const app= express();
+
 
 
 const mongodbURI = process.env.MONGO_URI
