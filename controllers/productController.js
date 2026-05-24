@@ -65,6 +65,7 @@ export async function createProduct(req, res){
 }
 
 export async function getAllProducts(req, res){
+    console.log("fetching products...")
     try{
         if(isAdmin(req)){//admin knk visthara illanv nm
             const products = await Product.find()
