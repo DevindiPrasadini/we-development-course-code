@@ -103,3 +103,59 @@ export default async function createOrder(req,res){
 
     }
 }
+
+export async function getOrders(req,res){
+
+    
+
+
+    try{
+        if(req.user == null){//admin knk nm okkom details denv
+            res.status(401).json({
+                message : "you need to be logged in to view your orders"
+            })
+            return
+        }
+
+        const pageSizeInString = req.params.pageSize|| "10"
+    const pageNumberInString = req.params.pageNumber|| "1"
+
+    const pageSize = parseInt(pageSizeInString)//convert to string
+    const pageNumber = parseInt(pageNumberInString)
+
+    if(pageSize < 1 || pageSize >100){
+        res.status(400).json({
+            message : "pagesize should be between 1 and 100"
+        })
+        return
+    }
+
+
+
+        if(req.user.isAdmin){
+            const orderCount = await Order.countDocuments()//orders koccr tiyed kiyl pennv
+
+            const totalPages = Math.ceil(orderCount / pageSize)
+            //if user ask for 3 pg previous pages should skipped
+            const orders = await Order.find().skip((pageNumber-1 )* pageSize).limit(pageSize)
+
+            res.status(200).json({
+                orders : orders,
+                totalPages : totalPages,
+                total : orderCount
+            })
+        }else{//user knk nm eyage order ek vitrk  pennv
+            const orderCount = await Order.countDocuments({email:req.user.email})
+
+            const orders = await Order.find({email : req.user.email})
+            res.status(200).json(orders)
+
+        }
+
+    }catch(error){
+        console.log(error)
+        res.status(500).json({
+            message : "error fetching orders"
+        })
+    }
+}
