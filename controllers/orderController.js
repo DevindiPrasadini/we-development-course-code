@@ -159,3 +159,27 @@ export async function getOrders(req,res){
         })
     }
 }
+
+ export async function updateOrderStatusAndNotes(req,res){
+
+    if(req.user && req.user.isAdmin){
+        try{
+            const orderId = req.params.orderId
+            await Order.findOneAndUpdate(
+                { orderId : orderId},
+                { status : req.body.status, notes : req.body.notes},
+                { retuenDocument : 'after'}
+            )
+
+        }catch(error){
+            console.log(error)
+            res.status(500).json({
+                message : "error updating order status and notes"
+            })
+        }
+    }else{
+        res.status(403).json({
+            message : "you are not authorized to perform this acton"
+        })
+    }
+}

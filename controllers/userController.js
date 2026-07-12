@@ -90,6 +90,17 @@ export async function loginUser(req,res){
    }
 
 }
+
+export async function getUserData(req, res){
+    if(req.user == null){
+        res.status(401).json({
+            message : "Unathorized"
+        })
+    }else{
+        res.json(req.user)
+    }
+}
+
 //req ekak athulata arn blnv ek evala tiyenne admin knkd ndd kiyl
 export default function isAdmin(req){
     if(req.user==null){
@@ -100,4 +111,64 @@ export default function isAdmin(req){
     }else{
         return false
     }
+}
+//users existing token have old information so when user data updating tokrn also updating into new one
+export async function updateUserData(req,res){
+    if(req.user == null){
+        res.status(401).json({
+            message : "Unathorized"
+        })
+    }else{
+        try{
+            await User.findOneAndUpdate(
+                {email : req.user.email},
+                {firstName : req.body.firstName, lastName: req.body.lastName , image: req.body.image}
+            )
+            const updateUser = await User.findOne({ email: req.user.email})
+            const token = jwt.sign(
+                {
+                    email : updateUser.email,
+                    firstName : updateUser.firstName,
+                    lastName : updateUser.lastName,
+                    isAdmin : updateUser.isAdmin,
+                    isBlocked : updateUser.isBlocked,
+                    isEmailVerified : updateUser.isEmailVerified,
+                    image : updateUser.image
+                },
+                process.env.JWT_SECRET,
+                {expiresIn : "48h"}
+            )
+            res.json({
+                message: "User data updated successfully",
+                token : token
+            })
+        
+        }catch(error){
+            res.status(500).json({
+                message : "Error updating user data"
+            })
+        }
+    }
+}
+export async function changePassword(req,res) {
+    if(req.user == null){
+        res.status(401).json({
+            message : "Unathorized"
+        })
+    }
+    try{
+        const hashedPassword = bcrypt.hashSync(req.body.newPassword, 10)
+        await User.findOneAndUpdate(
+            { email : req.user.email},
+            { password : hashedPassword}
+        )
+        res.json({
+            message : "Password changed successfully"
+        })
+    }catch(error){
+        res.status(500).json({
+            message : "Error updating password"
+        })
+    }
+    
 }
