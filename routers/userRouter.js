@@ -1,5 +1,5 @@
 import express from "express";
-import { changePassword, createUser, getUserData, loginUser, updateUserData } from "../controllers/userController.js";
+import { changePassword, createUser, getUserData, googleLogin, loginUser, sendOTP, updateUserData, verifyOTPAndResetPassword } from "../controllers/userController.js";
 
 
 const userRouter = express.Router();
@@ -9,5 +9,8 @@ userRouter.post("/login", loginUser)//login kiyala post ekata avoth meka run ven
 userRouter.get("/me", getUserData)
 userRouter.put("/",updateUserData)
 userRouter.put("/password",changePassword)
+userRouter.post("/google-login", googleLogin)
+userRouter.post("/send-otp", sendOTP)
+userRouter.post("/verify-otp", verifyOTPAndResetPassword)
 
 export default userRouter;
