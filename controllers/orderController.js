@@ -1,5 +1,6 @@
 import Order from "../models/order.js";
 import Product from "../models/product.js"
+import transporter from "../utils/mailer.js";
 
 export default async function createOrder(req,res){
     const user = req.user
@@ -11,7 +12,6 @@ export default async function createOrder(req,res){
         return
     }
 
-    //let orderId = "ORD00000001"
     const orderData = {
         orderId : "ORD00000001",
         email : user.email,
@@ -38,7 +38,7 @@ export default async function createOrder(req,res){
 
 
     try{
-        const lastOrder = await Order.findOne().sort({date: -1}) //get the last order
+        const lastOrder = await Order.findOne().sort({date: -1})
 
         if(lastOrder != null){
             const lastOrderIdString = lastOrder.orderId
@@ -79,8 +79,6 @@ export default async function createOrder(req,res){
         const newOrder =  new Order(orderData)
         await newOrder.save()
 
-        //reduce stock products
-
         for(let i=0; i < orderData.items.length ; i++){
             await Product.findOneAndUpdate(
                 {productId : orderData.items[i].product.productId},
@@ -91,9 +89,6 @@ export default async function createOrder(req,res){
         res.status(201).json({
             message : "order placed successfully"
         })
-
-        
-
 
     }catch(error){
         console.log(error)
@@ -106,11 +101,8 @@ export default async function createOrder(req,res){
 
 export async function getOrders(req,res){
 
-    
-
-
     try{
-        if(req.user == null){//admin knk nm okkom details denv
+        if(req.user == null){
             res.status(401).json({
                 message : "you need to be logged in to view your orders"
             })
@@ -118,38 +110,38 @@ export async function getOrders(req,res){
         }
 
         const pageSizeInString = req.params.pageSize|| "10"
-    const pageNumberInString = req.params.pageNumber|| "1"
+        const pageNumberInString = req.params.pageNumber|| "1"
 
-    const pageSize = parseInt(pageSizeInString)//convert to string
-    const pageNumber = parseInt(pageNumberInString)
+        const pageSize = parseInt(pageSizeInString)
+        const pageNumber = parseInt(pageNumberInString)
 
-    if(pageSize < 1 || pageSize >100){
-        res.status(400).json({
-            message : "pagesize should be between 1 and 100"
-        })
-        return
-    }
-
-
+        if(pageSize < 1 || pageSize >100){
+            res.status(400).json({
+                message : "pagesize should be between 1 and 100"
+            })
+            return
+        }
 
         if(req.user.isAdmin){
-            const orderCount = await Order.countDocuments()//orders koccr tiyed kiyl pennv
-
+            const orderCount = await Order.countDocuments()
             const totalPages = Math.ceil(orderCount / pageSize)
-            //if user ask for 3 pg previous pages should skipped
-            const orders = await Order.find().skip((pageNumber-1 )* pageSize).limit(pageSize)
+            const orders = await Order.find().sort({date: -1}).skip((pageNumber-1) * pageSize).limit(pageSize)
 
             res.status(200).json({
                 orders : orders,
                 totalPages : totalPages,
                 total : orderCount
             })
-        }else{//user knk nm eyage order ek vitrk  pennv
+        }else{
             const orderCount = await Order.countDocuments({email:req.user.email})
+            const totalPages = Math.ceil(orderCount / pageSize)
+            const orders = await Order.find({email : req.user.email}).sort({date: -1}).skip((pageNumber-1) * pageSize).limit(pageSize)
 
-            const orders = await Order.find({email : req.user.email})
-            res.status(200).json(orders)
-
+            res.status(200).json({
+                orders : orders,
+                totalPages : totalPages,
+                total : orderCount
+            })
         }
 
     }catch(error){
@@ -160,16 +152,44 @@ export async function getOrders(req,res){
     }
 }
 
- export async function updateOrderStatusAndNotes(req,res){
+export async function updateOrderStatusAndNotes(req,res){
 
     if(req.user && req.user.isAdmin){
         try{
             const orderId = req.params.orderId
+
+            const existingOrder = await Order.findOne({ orderId: orderId })
+            if (!existingOrder) {
+                res.status(404).json({ message: "Order not found" })
+                return
+            }
+            const statusChanged = req.body.status && req.body.status !== existingOrder.status
+
             await Order.findOneAndUpdate(
                 { orderId : orderId},
                 { status : req.body.status, notes : req.body.notes},
-                { retuenDocument : 'after'}
+                { returnDocument : 'after'}
             )
+
+            res.json({
+                message : "order updated successfully"
+            })
+
+            if (statusChanged) {
+                const message = {
+                    from: process.env.GMAIL,
+                    to: existingOrder.email,
+                    subject: `Your order ${orderId} is now ${req.body.status} - I COMPUTERS`,
+                    text: `Hi ${existingOrder.firstName},\n\nYour order ${orderId} status has been updated to: ${req.body.status}.\n\nThank you for shopping with I COMPUTERS.`
+                }
+                transporter.sendMail(message, (error, info) => {
+                    if (error) {
+                        console.log("Failed to send order status email:", error)
+                    } else {
+                        console.log("Order status email sent:", info.response)
+                    }
+                })
+            }
 
         }catch(error){
             console.log(error)
@@ -181,5 +201,94 @@ export async function getOrders(req,res){
         res.status(403).json({
             message : "you are not authorized to perform this acton"
         })
+    }
+}
+
+// export async function getSalesStats(req, res) {
+//     try {
+//         const stats = await Order.aggregate([
+//             { $unwind: "$items" },
+//             {
+//                 $group: {
+//                     _id: "$items.product.productId",
+//                     unitsSold: { $sum: "$items.quantity" }
+//                 }
+//             }
+//         ])
+//         const statsMap = {}
+//         stats.forEach(s => {
+//             statsMap[s._id] = s.unitsSold
+//         })
+//         res.json(statsMap)
+//     } catch (error) {
+//         console.log(error)
+//         res.status(500).json({ message: "Error fetching sales stats" })
+//     }
+// }
+
+// customer can cancel their own order only while it's still Pending
+
+export async function getSalesStats(req, res) {
+    try {
+        const stats = await Order.aggregate([
+            { $match: { status: { $ne: "Cancelled" } } },
+            { $unwind: "$items" },
+            {
+                $group: {
+                    _id: "$items.product.productId",
+                    unitsSold: { $sum: "$items.quantity" }
+                }
+            }
+        ])
+        const statsMap = {}
+        stats.forEach(s => {
+            statsMap[s._id] = s.unitsSold
+        })
+        res.json(statsMap)
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: "Error fetching sales stats" })
+    }
+}
+
+export async function cancelOrder(req, res) {
+    if (req.user == null) {
+        res.status(401).json({ message: "Unauthorized" })
+        return
+    }
+    try {
+        const order = await Order.findOne({ orderId: req.params.orderId })
+
+        if (!order) {
+            res.status(404).json({ message: "Order not found" })
+            return
+        }
+
+        if (order.email !== req.user.email && !req.user.isAdmin) {
+            res.status(403).json({ message: "You can only cancel your own order" })
+            return
+        }
+
+        if (order.status !== "Pending") {
+            res.status(400).json({ message: "Only pending orders can be cancelled" })
+            return
+        }
+
+        order.status = "Cancelled"
+        await order.save()
+
+        // restore stock for cancelled items
+        for (let i = 0; i < order.items.length; i++) {
+            await Product.findOneAndUpdate(
+                { productId: order.items[i].product.productId },
+                { $inc: { stock: order.items[i].quantity } }
+            )
+        }
+
+        res.json({ message: "Order cancelled successfully" })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: "Error cancelling order" })
     }
 }

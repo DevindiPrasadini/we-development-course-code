@@ -55,6 +55,7 @@ const productSchema = new mongoose.Schema({
         type:String,
         required:false
     }
+    
 })
 const Product = mongoose.model("Product",productSchema)
 export default Product

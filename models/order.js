@@ -23,8 +23,10 @@ const orderSchema = new mongoose.Schema({
                 price: { type: Number, required: true },
                 labelledPrice: { type: String, required: true },
                 image: { type: String },
+
             },
-            quantity: { type: Number, required: true }
+            quantity: { type: Number, required: true },
+            paymentMethod :{type: String, required: true, default:"COD"}
         }
     ]
 });

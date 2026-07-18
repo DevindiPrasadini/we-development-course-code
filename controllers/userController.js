@@ -3,21 +3,9 @@ import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import axios from "axios";
-import { response } from "express";
 import OTP from "../models/otp.js";
-import nodemailer from "nodemailer"
+import transporter from "../utils/mailer.js";
 dotenv.config()
-
-const transporter = nodemailer.createTransport({
-    service : "gmail",
-    host : "smtp.gmail.com",
-    port : 587,
-    secure : false,
-    auth : {
-        user :process.env.GMAIL,
-        pass : process.env.GMAIL_APP_PASSWORD
-    }
-})
 
 export async function createUser(req , res){  
 
@@ -47,27 +35,21 @@ export async function createUser(req , res){
 }
 
 export async function loginUser(req,res){
-//email,password user hoyagann oni
    try{
-    //const passwordHash = bcrypt.hashSync(req.body.password, 10)//10 kiyanne hash vena time gana(10 times hash venva)
-    // console.log(passwordHash)//hash una password eka pennanna
 
     const user = await User.findOne({
-        email:req.body.email//req apu email eke user va hoyagen print karanna
-
-
+        email:req.body.email
     })
     console.log(user)
 
-    if (user==null){//email ekata user kenek nantm
-        res.status(404).json({//404-user not found
+    if (user==null){
+        res.status(404).json({
             message : "user not found"
         })
-    }else{//user found
+    }else{
         const isPasswordCorrect = bcrypt.compareSync(req.body.password, user.password)
         if(isPasswordCorrect){
-            //methanata enava kiyanne eya legit user knk
-            const payload={//payload kiyanne visthara tika/content
+            const payload={
                     email:user.email,
                     firstName:user.firstName,
                     lastName:user.lastName,
@@ -75,19 +57,16 @@ export async function loginUser(req,res){
                     isBlocked:user.isBlocked,
                     isEmailVerified:user.isEmailVerified,
                     image:user.image
-            } //ita passe detaiols encryption krnv
+            }
 
             const token = jwt.sign(payload,process.env.JWT_SECRET,{
-                expiresIn : "48h"//48h vlin token password invalid venv
+                expiresIn : "48h"
             })
            res.json({
             token:token,
             isAdmin: user.isAdmin
-           })//log visthara encrypt vela hash ekak vge pennanv
+           })
 
-           /* res.json({
-                message : "login successfull"
-            })*/
         }else{
             res.status(401).json({
                 message:"invalid password"
@@ -115,7 +94,6 @@ export async function getUserData(req, res){
     }
 }
 
-//req ekak athulata arn blnv ek evala tiyenne admin knkd ndd kiyl
 export default function isAdmin(req){
     if(req.user==null){
         return false
@@ -126,7 +104,7 @@ export default function isAdmin(req){
         return false
     }
 }
-//users existing token have old information so when user data updating tokrn also updating into new one
+
 export async function updateUserData(req,res){
     if(req.user == null){
         res.status(401).json({
@@ -190,7 +168,6 @@ export async function changePassword(req,res) {
 export async function googleLogin(req,res){
 
     const accessToken = req.body.token
-    //send to google and get valodated
     try{
         const googleResponse = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo",{
             headers : {
@@ -203,7 +180,6 @@ export async function googleLogin(req,res){
             {email : googleResponse.data.email}
         )
         if (user == null){
-            //create new account if user is new comer
             const newUser = new User({
                 email : googleResponse.data.email,
                 firstName : googleResponse.data.given_name,
@@ -234,7 +210,6 @@ export async function googleLogin(req,res){
                 
             
         }else{
-            //generate toke
              const token = jwt.sign(
                 {
                     email : user.email,
@@ -274,10 +249,8 @@ export async function sendOTP(req,res) {
             })
             return
         }
-        // if user already have saved otp it should be delete
         await OTP.deleteOne({ email: email})
 
-        // generate otp ans save on database
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
 
         const newOTP = new OTP({
@@ -286,14 +259,12 @@ export async function sendOTP(req,res) {
         })
         await newOTP.save()
 
-        //send otp to the email of user
-
         const message = {
             from : process.env.GMAIL,
             to : email,
             subject : "Password reset OTP - I COMPUTERS",
             text : "your OTP for password reset " + otpCode + ". It is valid for 10 minutes."
-        }//text or html (html can generate from AI)
+        }
 
         transporter.sendMail(message, (error , info) =>{
             if(error){
@@ -337,7 +308,7 @@ export async function verifyOTPAndResetPassword(req,res) {
             })
             return
         }
-        const otpAge = (Date.now() =otpRecord.createdTime.getTime()) / (1000 * 60) //checking otp time 
+        const otpAge = (Date.now() - otpRecord.createdTime.getTime()) / (1000 * 60)
         if(otpAge > 10){
             await OTP.deleteOne({ email : email})
             res.status(400).json({
@@ -363,7 +334,84 @@ export async function verifyOTPAndResetPassword(req,res) {
         })
         return
     }
+}
 
+export async function getAllUsers(req, res) {
+    if (req.user == null || !req.user.isAdmin) {
+        res.status(403).json({ message: "Forbidden" })
+        return
+    }
+    try {
+        const users = await User.find().select("-password")
+        res.json(users)
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: "Error fetching users" })
+    }
+}
 
-    
+export async function toggleAdmin(req, res) {
+    if (req.user == null || !req.user.isAdmin) {
+        res.status(403).json({ message: "Forbidden" })
+        return
+    }
+    try {
+        const user = await User.findOne({ email: req.params.email })
+        if (!user) {
+            res.status(404).json({ message: "User not found" })
+            return
+        }
+        if (user.email === req.user.email) {
+            res.status(400).json({ message: "You cannot change your own admin status" })
+            return
+        }
+        user.isAdmin = !user.isAdmin
+        await user.save()
+        res.json({ message: "Admin status updated successfully" })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: "Error updating admin status" })
+    }
+}
+
+export async function toggleBlock(req, res) {
+    if (req.user == null || !req.user.isAdmin) {
+        res.status(403).json({ message: "Forbidden" })
+        return
+    }
+    try {
+        const user = await User.findOne({ email: req.params.email })
+        if (!user) {
+            res.status(404).json({ message: "User not found" })
+            return
+        }
+        if (user.email === req.user.email) {
+            res.status(400).json({ message: "You cannot block yourself" })
+            return
+        }
+        user.isBlocked = !user.isBlocked
+        await user.save()
+        res.json({ message: "User block status updated successfully" })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: "Error updating block status" })
+    }
+}
+
+export async function deleteUser(req, res) {
+    if (req.user == null || !req.user.isAdmin) {
+        res.status(403).json({ message: "Forbidden" })
+        return
+    }
+    try {
+        if (req.params.email === req.user.email) {
+            res.status(400).json({ message: "You cannot delete your own account" })
+            return
+        }
+        await User.findOneAndDelete({ email: req.params.email })
+        res.json({ message: "User deleted successfully" })
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ message: "Error deleting user" })
+    }
 }
