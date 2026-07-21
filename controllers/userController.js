@@ -237,53 +237,94 @@ export async function googleLogin(req,res){
     }
 }
 
-export async function sendOTP(req,res) {
-    const email = req.body.email
+// export async function sendOTP(req,res) {
+//     const email = req.body.email
 
-    try{
-        const user = await User.findOne({ email : email})
+//     try{
+//         const user = await User.findOne({ email : email})
 
-        if(user == null){
-            res.status(404).json({
-                message : "User not found"
-            })
-            return
+//         if(user == null){
+//             res.status(404).json({
+//                 message : "User not found"
+//             })
+//             return
+//         }
+//         await OTP.deleteOne({ email: email})
+
+//         const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+
+//         const newOTP = new OTP({
+//             email : email,
+//             otp : otpCode
+//         })
+//         await newOTP.save()
+
+//         const message = {
+//             from : process.env.GMAIL,
+//             to : email,
+//             subject : "Password reset OTP - I COMPUTERS",
+//             text : "your OTP for password reset " + otpCode + ". It is valid for 10 minutes."
+//         }
+
+//         transporter.sendMail(message, (error , info) =>{
+//             if(error){
+//                 console.log(error)
+//                 res.status(500).json({
+//                     message : " error sending OTP email"
+//                 })
+//             }else{
+//                 console.log("Email sent : "+ info.response)
+//                 res.json({
+//                     message : "OTP sent successfully"
+//                 })
+//             }
+//         })
+
+//     }catch(error){
+//         res.status(500).json({
+//             message : "Error sending OTP"
+//         })
+//     }
+// }
+export async function sendOTP(req, res) {
+    const email = req.body.email;
+     console.log("sending otp to:", email)
+
+    try {
+       
+        const user = await User.findOne({ email: email });
+        if (user == null) {
+            res.status(400).json({
+                message: "No account found with this email"
+            });
+            return;
         }
-        await OTP.deleteOne({ email: email})
 
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        const newOTP = new OTP({
-            email : email,
-            otp : otpCode
-        })
-        await newOTP.save()
+        await OTP.findOneAndUpdate(
+            { email: email },
+            { email: email, otp: otp, createdTime: new Date() },
+            { upsert: true, returnDocument: "after" }
+        );
 
-        const message = {
-            from : process.env.GMAIL,
-            to : email,
-            subject : "Password reset OTP - I COMPUTERS",
-            text : "your OTP for password reset " + otpCode + ". It is valid for 10 minutes."
-        }
+        await transporter.sendMail({
+            from: process.env.GMAIL,
+            to: email,
+            subject: "Password reset OTP - I COMPUTERS",
+            text: `Your OTP for password reset is ${otp}. It is valid for 10 minutes.`
+        });
 
-        transporter.sendMail(message, (error , info) =>{
-            if(error){
-                console.log(error)
-                res.status(500).json({
-                    message : " error sending OTP email"
-                })
-            }else{
-                console.log("Email sent : "+ info.response)
-                res.json({
-                    message : "OTP sent successfully"
-                })
-            }
-        })
+        res.json({
+            message: "OTP sent successfully"
+            
+        });
 
-    }catch(error){
+    } catch (error) {
+        console.error(error);
         res.status(500).json({
-            message : "Error sending OTP"
-        })
+            message: "Failed to send OTP"
+        });
     }
 }
 
